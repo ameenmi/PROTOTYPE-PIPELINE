@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.api.routes import router
 from app.core.config import settings
@@ -52,3 +54,22 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
+_static_dir = Path(__file__).resolve().parents[1].parent / "static"
+if not _static_dir.is_dir():
+    _static_dir = Path(__file__).resolve().parents[1] / "static"
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+if _static_dir.is_dir():
+
+    @app.get("/{full_path:path}")
+    def spa(full_path: str):
+        candidate = (_static_dir / full_path).resolve()
+        if full_path and str(candidate).startswith(str(_static_dir.resolve())) and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_static_dir / "index.html")
